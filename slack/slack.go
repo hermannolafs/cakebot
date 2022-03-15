@@ -17,7 +17,7 @@ var api = slack.New(secrets.AppToken,
 var secrets struct {
 	AppToken      string // xapp
 	BotToken      string // xoxb
-	SigningSecret string
+	SigningSecret string // signing secretttt
 }
 
 //encore:api public raw path=/cakebot
