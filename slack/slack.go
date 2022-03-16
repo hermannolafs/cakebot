@@ -9,6 +9,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
+const cowart = "Moo! %s"
+
 var api = slack.New(secrets.AppToken,
 	slack.OptionAppLevelToken(secrets.BotToken),
 	slack.OptionDebug(true),
@@ -22,24 +24,12 @@ var secrets struct {
 
 //encore:api public raw path=/simpler
 func Simpler(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	body, fucked := readBodyFromRequest(w, r)
+	if fucked {
 		return
 	}
-	// Verify secret here
-	secretsVerifier, err := slack.NewSecretsVerifier(r.Header, secrets.SigningSecret)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	// I am not sure
-	if _, err := secretsVerifier.Write(body); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := secretsVerifier.Ensure(); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+
+	if verifySlackSigning(w, r, body) {
 		return
 	}
 
@@ -47,6 +37,50 @@ func Simpler(w http.ResponseWriter, r *http.Request) {
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
 		"text":          fmt.Sprintf("BOOOOO %s", text),
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(data)
+}
+
+func readBodyFromRequest(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return nil, true
+	}
+	return body, false
+}
+
+// Example fetched from here:
+// https://github.com/slack-go/slack/blob/master/examples/eventsapi/events.go
+// Returning bool because intelliJ autoextract method said so
+// TODO refactor this to be more clever
+func verifySlackSigning(w http.ResponseWriter, r *http.Request, body []byte) bool {
+	secretsVerifier, err := slack.NewSecretsVerifier(r.Header, secrets.SigningSecret)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return true
+	}
+	if _, err := secretsVerifier.Write(body); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return true
+	}
+	if err := secretsVerifier.Ensure(); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return true
+	}
+	return false
+}
+
+
+//encore:api public raw path=/cowsay
+func Cowsay(w http.ResponseWriter, req *http.Request) {
+	text := req.FormValue("text")
+	data, _ := json.Marshal(map[string]string{
+		"response_type": "in_channel",
+		"text":          fmt.Sprintf(cowart, text),
 	})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
