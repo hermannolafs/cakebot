@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"encore.dev/rlog"
+
 	"github.com/slack-go/slack"
 )
 
@@ -32,8 +34,12 @@ func Simpler(w http.ResponseWriter, r *http.Request) {
 	if verifySlackSigning(w, r, body) {
 		return
 	}
+	rlog.Debug("Verified that it is slack")
 
 	text := r.FormValue("text")
+	rlog.Info("Got this text: %s", text)
+	rlog.Debug("Got this text: %s", text)
+
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
 		"text":          fmt.Sprintf("BOOOOO %s", text),
