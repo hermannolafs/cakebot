@@ -2,7 +2,7 @@ package slack
 
 import (
 	"encoding/json"
-	"github.com/slack-go/slack/slackevents"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -20,56 +20,92 @@ var secrets struct {
 	SigningSecret string // signing secretttt
 }
 
-//encore:api public raw path=/cakebot
-func CoolThing(w http.ResponseWriter, r *http.Request) {
-
+//encore:api public raw path=/simpler
+func Simpler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	// Verify secret here
-	sv, err := slack.NewSecretsVerifier(r.Header, secrets.SigningSecret)
+	secretsVerifier, err := slack.NewSecretsVerifier(r.Header, secrets.SigningSecret)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	// I am not sure
-	if _, err := sv.Write(body); err != nil {
+	if _, err := secretsVerifier.Write(body); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if err := sv.Ensure(); err != nil {
+	if err := secretsVerifier.Ensure(); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	// Getting the event, not sure why noVerifyToken thing
-	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	//
-	if eventsAPIEvent.Type == slackevents.URLVerification {
-		var r *slackevents.ChallengeResponse
-		err := json.Unmarshal([]byte(body), &r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text")
-		w.Write([]byte(r.Challenge))
-	}
-	if eventsAPIEvent.Type == slackevents.CallbackEvent {
-		innerEvent := eventsAPIEvent.InnerEvent
-		switch ev := innerEvent.Data.(type) {
-		case *slackevents.AppMentionEvent:
-			api.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false))
-		}
-	}
-
+	text := r.FormValue("text")
+	data, _ := json.Marshal(map[string]string{
+		"response_type": "in_channel",
+		"text":          fmt.Sprintf("OOOOO %s", text),
+	})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	w.Write(data)
 }
+
+//
+////encore:api public raw path=/cakebot
+//func CoolThing(w http.ResponseWriter, r *http.Request) {
+//
+//	body, err := ioutil.ReadAll(r.Body)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusBadRequest)
+//		return
+//	}
+//	// Verify secret here
+//	sv, err := slack.NewSecretsVerifier(r.Header, secrets.SigningSecret)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusBadRequest)
+//		return
+//	}
+//	// I am not sure
+//	if _, err := sv.Write(body); err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//	if err := sv.Ensure(); err != nil {
+//		http.Error(w, err.Error(), http.StatusUnauthorized)
+//		return
+//	}
+//
+//	// Getting the event, not sure why noVerifyToken thing
+//	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	//
+//	if eventsAPIEvent.Type == slackevents.URLVerification {
+//		var r *slackevents.ChallengeResponse
+//		err := json.Unmarshal([]byte(body), &r)
+//		if err != nil {
+//			http.Error(w, err.Error(), http.StatusInternalServerError)
+//			return
+//		}
+//		w.Header().Set("Content-Type", "text")
+//		w.Write([]byte(r.Challenge))
+//	}
+//	if eventsAPIEvent.Type == slackevents.CallbackEvent {
+//		innerEvent := eventsAPIEvent.InnerEvent
+//		switch ev := innerEvent.Data.(type) {
+//		case *slackevents.AppMentionEvent:
+//			api.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false))
+//		}
+//	}
+//
+//	api.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false), slack.M)
+//
+//	w.Header().Set("Content-Type", "application/json")
+//	w.WriteHeader(200)
+//}
