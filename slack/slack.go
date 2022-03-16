@@ -46,7 +46,7 @@ func Simpler(w http.ResponseWriter, r *http.Request) {
 	text := r.FormValue("text")
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
-		"text":          fmt.Sprintf("OOOOO %s", text),
+		"text":          fmt.Sprintf("BOOOOO %s", text),
 	})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
