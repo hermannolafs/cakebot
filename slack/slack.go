@@ -37,12 +37,12 @@ func Simpler(w http.ResponseWriter, r *http.Request) {
 	rlog.Debug("Verified that it is slack")
 
 	text := r.FormValue("text")
-	rlog.Info("Got this text: %s", text)
-	rlog.Debug("Got this text: %s", text)
+	rlog.Info("Got this text: " + text)
+	rlog.Debug("Got this text: " + text)
 
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
-		"text":          fmt.Sprintf("BOOOOO %s", text),
+		"text":          fmt.Sprintf("BOOOOO " + text),
 	})
 
 	w.Header().Set("Content-Type", "application/json")
