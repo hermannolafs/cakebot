@@ -26,14 +26,14 @@ var secrets struct {
 
 //encore:api public raw path=/simpler
 func Simpler(w http.ResponseWriter, r *http.Request) {
-	//body, fucked := readBodyFromRequest(w, r)
-	//if fucked {
-	//	return
-	//}
-	//
-	//if verifySlackSigning(w, r, body) {
-	//	return
-	//}
+	body, fucked := readBodyFromRequest(w, r)
+	if fucked {
+		return
+	}
+
+	if verifySlackSigning(w, r, body) {
+		return
+	}
 
 
 	// Todo fetch this from the body instead
