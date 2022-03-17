@@ -26,25 +26,23 @@ var secrets struct {
 
 //encore:api public raw path=/simpler
 func Simpler(w http.ResponseWriter, r *http.Request) {
-	body, fucked := readBodyFromRequest(w, r)
-	if fucked {
-		return
-	}
+	//body, fucked := readBodyFromRequest(w, r)
+	//if fucked {
+	//	return
+	//}
+	//
+	//if verifySlackSigning(w, r, body) {
+	//	return
+	//}
 
-	if verifySlackSigning(w, r, body) {
-		return
-	}
-	rlog.Debug("Verified that it is slack")
 
+	// Todo fetch this from the body instead
 	text := r.FormValue("text")
-	rlog.Info("Got this text: " + text)
-	rlog.Debug("Got this text: " + text)
-
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
-		"text":          fmt.Sprintf("BOOOOO " + text),
+		"text":          fmt.Sprintf(cowart, text),
 	})
-
+	rlog.Debug("Got this text:" + text)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	w.Write(data)
@@ -78,19 +76,6 @@ func verifySlackSigning(w http.ResponseWriter, r *http.Request, body []byte) boo
 		return true
 	}
 	return false
-}
-
-
-//encore:api public raw path=/cowsay
-func Cowsay(w http.ResponseWriter, req *http.Request) {
-	text := req.FormValue("text")
-	data, _ := json.Marshal(map[string]string{
-		"response_type": "in_channel",
-		"text":          fmt.Sprintf(cowart, text),
-	})
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(data)
 }
 
 //
