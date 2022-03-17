@@ -35,6 +35,7 @@ func Simpler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rlog.Debug("BODY: " + string(body))
 
 	// Todo fetch this from the body instead
 	text := r.FormValue("text")
