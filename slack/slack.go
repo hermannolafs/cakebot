@@ -1,15 +1,14 @@
 package slack
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/slack-go/slack/slackevents"
 	"io/ioutil"
 	"net/http"
 
-	"encore.dev/rlog"
-
 	"github.com/slack-go/slack"
-	"github.com/buger/jsonparser"
 )
 
 const cowart = "Moo! %s"
@@ -25,40 +24,63 @@ var secrets struct {
 	SigningSecret string // signing secretttt
 }
 
-//encore:api public raw path=/simpler
-func Simpler(w http.ResponseWriter, r *http.Request) {
-	body, fucked := readBodyFromRequest(w, r)
-	if fucked {
-		return
+//encore:api public raw path=/msgr
+func Msgr(w http.ResponseWriter, r *http.Request)  {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
-
-	rlog.Debug("Got this body:" + string(body))
-
 	if verifySlackSigning(w, r, body) {
 		return
 	}
 
-	text, err := jsonparser.GetString(body, "text")
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+
+	if eventsAPIEvent.Type == slackevents.URLVerification {
+		var r *slackevents.ChallengeResponse
+		err := json.Unmarshal([]byte(body), &r)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text")
+		w.Write([]byte(r.Challenge))
+	}
+}
+
+//encore:api public raw path=/simpler
+func Simpler(w http.ResponseWriter, r *http.Request) {
+	//body, fucked := readAndResetBodyFromRequest(w, r)
+	//if fucked {
+	//	return
+	//}
+
+	text := r.FormValue("text")
 
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
 		"text":          fmt.Sprintf("Scibbiddy BOOO: %s", text),
 	})
-	rlog.Debug("Got this text:" + text)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	w.Write(data)
 }
 
-func readBodyFromRequest(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+func readAndResetBodyFromRequest(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
 	body, err := ioutil.ReadAll(r.Body)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return nil, true
 	}
+
+	r.Body.Close()
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 	return body, false
 }
 
