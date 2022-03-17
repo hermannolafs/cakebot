@@ -9,6 +9,7 @@ import (
 	"encore.dev/rlog"
 
 	"github.com/slack-go/slack"
+	"github.com/buger/jsonparser"
 )
 
 const cowart = "Moo! %s"
@@ -31,17 +32,20 @@ func Simpler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rlog.Debug("Got this body:" + string(body))
+
 	if verifySlackSigning(w, r, body) {
 		return
 	}
 
-	rlog.Debug("BODY: " + string(body))
+	text, err := jsonparser.GetString(body, "text")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 
-	// Todo fetch this from the body instead
-	text := r.FormValue("text")
 	data, _ := json.Marshal(map[string]string{
 		"response_type": "in_channel",
-		"text":          fmt.Sprintf(cowart, text),
+		"text":          fmt.Sprintf("Scibbiddy BOOO: %s", text),
 	})
 	rlog.Debug("Got this text:" + text)
 	w.Header().Set("Content-Type", "application/json")
