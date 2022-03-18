@@ -1,9 +1,8 @@
 package slack
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
+	"encore.dev/rlog"
 	"github.com/slack-go/slack/slackevents"
 	"io/ioutil"
 	"net/http"
@@ -30,58 +29,41 @@ func Msgr(w http.ResponseWriter, r *http.Request)  {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+
 	if verifySlackSigning(w, r, body) {
 		return
 	}
 
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if eventsAPIEvent.Type == slackevents.URLVerification {
-		var r *slackevents.ChallengeResponse
-		err := json.Unmarshal([]byte(body), &r)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text")
-		w.Write([]byte(r.Challenge))
+	switch eventsAPIEvent.Type {
+	case slackevents.CallbackEvent:
+		consumeSlackCallBackEvent(w, body)
+	case slackevents.URLVerification:
+		slackURLVerification(w, body)
+	default:
+		rlog.Debug("No case for event:", "eventsAPIEvent", eventsAPIEvent)
 	}
 }
 
-//encore:api public raw path=/simpler
-func Simpler(w http.ResponseWriter, r *http.Request) {
-	//body, fucked := readAndResetBodyFromRequest(w, r)
-	//if fucked {
-	//	return
-	//}
-
-	text := r.FormValue("text")
-
-	data, _ := json.Marshal(map[string]string{
-		"response_type": "in_channel",
-		"text":          fmt.Sprintf("Scibbiddy BOOO: %s", text),
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write(data)
+func consumeSlackCallBackEvent(w http.ResponseWriter, body []byte) {
+	// TODO
+	panic("implement me")
 }
 
-func readAndResetBodyFromRequest(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
-	body, err := ioutil.ReadAll(r.Body)
-
+func slackURLVerification(w http.ResponseWriter, body []byte) {
+	rlog.Debug("Got a url verify request", )
+	var r *slackevents.ChallengeResponse
+	err := json.Unmarshal([]byte(body), &r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return nil, true
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
-	r.Body.Close()
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-	return body, false
+	w.Header().Set("Content-Type", "text")
+	w.Write([]byte(r.Challenge))
 }
 
 // Example fetched from here:
@@ -104,60 +86,3 @@ func verifySlackSigning(w http.ResponseWriter, r *http.Request, body []byte) boo
 	}
 	return false
 }
-
-//
-////encore:api public raw path=/cakebot
-//func CoolThing(w http.ResponseWriter, r *http.Request) {
-//
-//	body, err := ioutil.ReadAll(r.Body)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusBadRequest)
-//		return
-//	}
-//	// Verify secret here
-//	sv, err := slack.NewSecretsVerifier(r.Header, secrets.SigningSecret)
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusBadRequest)
-//		return
-//	}
-//	// I am not sure
-//	if _, err := sv.Write(body); err != nil {
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//	if err := sv.Ensure(); err != nil {
-//		http.Error(w, err.Error(), http.StatusUnauthorized)
-//		return
-//	}
-//
-//	// Getting the event, not sure why noVerifyToken thing
-//	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		return
-//	}
-//
-//	//
-//	if eventsAPIEvent.Type == slackevents.URLVerification {
-//		var r *slackevents.ChallengeResponse
-//		err := json.Unmarshal([]byte(body), &r)
-//		if err != nil {
-//			http.Error(w, err.Error(), http.StatusInternalServerError)
-//			return
-//		}
-//		w.Header().Set("Content-Type", "text")
-//		w.Write([]byte(r.Challenge))
-//	}
-//	if eventsAPIEvent.Type == slackevents.CallbackEvent {
-//		innerEvent := eventsAPIEvent.InnerEvent
-//		switch ev := innerEvent.Data.(type) {
-//		case *slackevents.AppMentionEvent:
-//			api.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false))
-//		}
-//	}
-//
-//	api.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false), slack.M)
-//
-//	w.Header().Set("Content-Type", "application/json")
-//	w.WriteHeader(200)
-//}
