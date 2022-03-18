@@ -12,15 +12,28 @@ import (
 
 const cowart = "Moo! %s"
 
-var api = slack.New(secrets.AppToken,
-	slack.OptionAppLevelToken(secrets.BotToken),
-	slack.OptionDebug(true),
-)
+var api *slack.Client
 
 var secrets struct {
 	AppToken      string // xapp
 	BotToken      string // xoxb
 	SigningSecret string // signing secretttt
+}
+
+func init() {
+	rlog.Debug("Init method invoked")
+	api = slack.New(secrets.AppToken,
+		slack.OptionAppLevelToken(secrets.BotToken),
+		slack.OptionDebug(true),
+	)
+
+	test, err := api.AuthTest()
+	rlog.Debug("Got this output from AuthTest: ", "test", test)
+	rlog.Debug("Got this err from AuthTest: ", "err", err)
+	if err != nil {
+		panic("issues: " + err.Error())
+	}
+
 }
 
 //encore:api public raw path=/msgr
@@ -42,7 +55,7 @@ func Msgr(w http.ResponseWriter, r *http.Request)  {
 
 	switch eventsAPIEvent.Type {
 	case slackevents.CallbackEvent:
-		consumeSlackCallBackEvent(w, body)
+		consumeSlackCallBackEvent(w, eventsAPIEvent)
 	case slackevents.URLVerification:
 		slackURLVerification(w, body)
 	default:
@@ -50,9 +63,16 @@ func Msgr(w http.ResponseWriter, r *http.Request)  {
 	}
 }
 
-func consumeSlackCallBackEvent(w http.ResponseWriter, body []byte) {
-	// TODO
-	panic("implement me")
+func consumeSlackCallBackEvent(w http.ResponseWriter, event slackevents.EventsAPIEvent) {
+	innerEvent := event.InnerEvent
+	switch ev := innerEvent.Data.(type) {
+	case *slackevents.AppMentionEvent:
+		_, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("Yes", false))
+		if err != nil {
+			rlog.Debug(err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+	}
 }
 
 func slackURLVerification(w http.ResponseWriter, body []byte) {
