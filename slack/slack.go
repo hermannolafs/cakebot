@@ -2,10 +2,11 @@ package slack
 
 import (
 	"encoding/json"
-	"encore.dev/rlog"
-	"github.com/slack-go/slack/slackevents"
 	"io/ioutil"
 	"net/http"
+
+	"encore.dev/rlog"
+	"github.com/slack-go/slack/slackevents"
 
 	"github.com/slack-go/slack"
 )
@@ -17,7 +18,7 @@ var api *slack.Client
 var secrets struct {
 	AppToken      string // xapp
 	BotToken      string // xoxb
-	SigningSecret string // signing secretttt
+	SigningSecret string // signing secret
 }
 
 func init() {
@@ -83,7 +84,12 @@ func slackURLVerification(w http.ResponseWriter, body []byte) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Header().Set("Content-Type", "text")
-	w.Write([]byte(r.Challenge))
+	_, err = w.Write([]byte(r.Challenge))
+	if err != nil {
+		rlog.Error("Error writing challenge response: ", "err", err)
+		http.Error(w, "Error writing challenge response: " +err.Error(), http.StatusInternalServerError)
+		return 
+	}
 }
 
 // Example fetched from here:
