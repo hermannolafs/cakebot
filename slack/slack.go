@@ -102,22 +102,19 @@ func consumeAppMention(w http.ResponseWriter, event slackevents.AppMentionEvent)
 }
 
 func consumeMessageEvent(w http.ResponseWriter, event slackevents.MessageEvent, body []byte) {
-	err := api.AddReaction("mrclean", slack.NewRefToMessage(event.Channel, event.TimeStamp))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-
 	fileName := strings.Replace(event.Text," ", "_", -1)
 
-	f, err := os.Create(fileName + ".json")
-	if err != nil {
-		rlogAndHttpError("Error creating the file", w, err, http.StatusInternalServerError)
-	}
-	if _, err := f.Write(body); err != nil {
-		rlogAndHttpError("Error writing to the file", w, err, http.StatusInternalServerError)
-	}
+	// f, err := os.Create(fileName + ".json")
+	// if err != nil {
+	// 	rlogAndHttpError("Error creating the file", w, err, http.StatusInternalServerError)
+	// }
+	// if _, err := f.Write(body); err != nil {
+	// 	rlogAndHttpError("Error writing to the file", w, err, http.StatusInternalServerError)
+	// }
 
+	if err := api.AddReaction("mrclean", slack.NewRefToMessage(event.Channel, event.TimeStamp)); err != nil {
+		rlogAndHttpError("Error adding mrclean :(", w, err, http.StatusInternalServerError)
+	}
 }
 
 func slackURLVerification(w http.ResponseWriter, body []byte) {
